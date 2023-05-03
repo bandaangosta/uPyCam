@@ -29,7 +29,7 @@ class webcam():
         self.contrast = 0
         self.vflip = 0
         self.hflip = 0
-        self.framesize = camera.FRAME_VGA
+        self.framesize = camera.FRAME_SVGA
 
         self.routeHandlers = [
             ("/", "GET", self._httpHandlerIndex),
@@ -37,6 +37,8 @@ class webcam():
             ("/stream/<d>", "GET", self._httpStream),
             ("/upy/<saturation>/<brightness>/<contrast>/<quality>/<vflip>/<hflip>/<framesize>", "GET", self._httpHandlerSetData),
             ("/upy", "GET", self._httpHandlerGetData),
+            ("/ledon", "GET", self._httpHandlerLedOn),
+            ("/ledoff", "GET", self._httpHandlerLedOff),
             ("/memory/<query>", "GET", self._httpHandlerMemory)
         ]
 
@@ -45,7 +47,7 @@ class webcam():
 
         # Camera resilience - if we fail to init try to deinit and init again
         if app_config['camera'] == 'ESP32-CAM':
-            camera.init(0, format=camera.JPEG, framesize=self.framesize)      #ESP32-CAM
+            camera.init(0, format=camera.JPEG, framesize=self.framesize, fb_location=camera.PSRAM)      #ESP32-CAM
 
         elif app_config['camera'] == 'M5CAMERA':
             camera.init(0, format=camera.JPEG, framesize=self.framesize, d0=32, d1=35, d2=34, d3=5, d4=39, 
@@ -139,6 +141,27 @@ class webcam():
                                     contentType="application/json",
                                     contentCharset="UTF-8",
                                     content=json.dumps(data))
+        
+    def _httpHandlerLed(self, httpClient, httpResponse, led_status):
+        data = {
+            'led': led_status
+        }
+
+        if led_status:
+            self.led.on()
+        else:
+            self.led.off()
+
+        httpResponse.WriteResponseOk(headers=None,
+                                    contentType="application/json",
+                                    contentCharset="UTF-8",
+                                    content=json.dumps(data))
+
+    def _httpHandlerLedOn(self, httpClient, httpResponse):
+        self._httpHandlerLed(httpClient, httpResponse, led_status=True)
+
+    def _httpHandlerLedOff(self, httpClient, httpResponse):
+        self._httpHandlerLed(httpClient, httpResponse, led_status=False)
 
     def _httpHandlerMemory(self, httpClient, httpResponse, routeArgs):
         print("In Memory HTTP variable route :")
